@@ -139,3 +139,10 @@ def evaluate_heuristic(
     if return_episode_rewards:
         return episode_rewards, episode_lengths
     return mean_reward, std_reward
+
+def custom_print(*args, root_dir="/Users/sribalac/Documents/Optical RL Gym/optical-rl-gym-main/printLogs/", file_name="output.txt", **kwargs):
+    file_name = f"{root_dir}{file_name}.txt"
+    output_str = ' '.join(str(arg) for arg in args)
+    print(output_str, **kwargs)
+    with open(file_name, 'a') as file:
+        print(output_str, file=file, **kwargs)

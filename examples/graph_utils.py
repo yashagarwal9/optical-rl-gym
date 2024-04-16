@@ -35,9 +35,7 @@ def read_sndlib_topology(file):
         tree = xml.dom.minidom.parse(file)
         document = tree.documentElement
 
-        graph.graph["coordinatesType"] = document.getElementsByTagName("nodes")[
-            0
-        ].getAttribute("coordinatesType")
+        graph.graph["coordinatesType"] = document.getElementsByTagName("nodes")[0].getAttribute("coordinatesType")
 
         nodes = document.getElementsByTagName("node")
         for node in nodes:
