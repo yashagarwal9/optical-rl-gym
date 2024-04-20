@@ -11,6 +11,11 @@ register(
 )
 
 register(
+    id="CustomDeepRMSA-v0",
+    entry_point="optical_rl_gym.envs:CustomDeepRMSAEnv",
+)
+
+register(
     id="RWA-v0",
     entry_point="optical_rl_gym.envs:RWAEnv",
 )
