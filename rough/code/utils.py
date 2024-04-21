@@ -6,22 +6,20 @@ import numpy as np
 def normalize_adjacency(adj, num_nodes, batch_size):
     """Normalize the adjacency matrix."""
 
-    # Add self loops
-    # identity_batch = torch.eye(num_nodes).unsqueeze(0).repeat(batch_size, 1, 1)
-    # adj = torch.where(
-    #     adj == 0,
-    #     adj + identity_batch,
-    #     adj
-    # )
+    # Get the device from the input adjacency matrix
+    device = adj.device
 
-    identity = torch.eye(num_nodes).repeat(batch_size, 1, 1)
+    # Create the identity matrix on the same device as the input adjacency matrix
+    identity = torch.eye(num_nodes, device=device).repeat(batch_size, 1, 1)
     adj = adj + identity
 
     degree_matrix = adj.sum(dim=-1)
     # Compute the D^{-1/2} component
     degree_matrix_inv_sqrt = degree_matrix.pow(-0.5)
     degree_matrix_inv_sqrt[degree_matrix_inv_sqrt == float('inf')] = 0
-    degree_matrix_inv_sqrt = degree_matrix_inv_sqrt.unsqueeze(-1) * torch.eye(num_nodes).unsqueeze(0).repeat(batch_size, 1, 1)
+
+    # Create the degree matrix on the same device as the input adjacency matrix
+    degree_matrix_inv_sqrt = degree_matrix_inv_sqrt.unsqueeze(-1) * torch.eye(num_nodes, device=device).unsqueeze(0).repeat(batch_size, 1, 1)
 
     # Perform the symmetric normalization
     normalized_adjacency_matrix = torch.matmul(torch.matmul(degree_matrix_inv_sqrt, adj), degree_matrix_inv_sqrt)

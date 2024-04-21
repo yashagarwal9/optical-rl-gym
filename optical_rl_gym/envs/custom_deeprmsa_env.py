@@ -5,22 +5,21 @@ from gym import spaces
 import numpy as np
 
 from .rmsa_env import RMSAEnv
-from ..utils import custom_print
 
 
 class CustomDeepRMSAEnv(RMSAEnv):
     def __init__(
-        self,
-        topology=None,
-        j=1,
-        episode_length=1000,
-        mean_service_holding_time=25.0,
-        mean_service_inter_arrival_time=0.1,
-        num_spectrum_resources=100,
-        node_request_probabilities=None,
-        seed=None,
-        allow_rejection=False,
-        max_num_nodes=1000,
+            self,
+            topology=None,
+            j=1,
+            episode_length=1000,
+            mean_service_holding_time=25.0,
+            mean_service_inter_arrival_time=0.1,
+            num_spectrum_resources=100,
+            node_request_probabilities=None,
+            seed=None,
+            allow_rejection=False,
+            max_num_nodes=1000,
     ):
         super().__init__(
             topology=topology,
@@ -48,11 +47,11 @@ class CustomDeepRMSAEnv(RMSAEnv):
         # )
 
         shape = (
-            (max_num_nodes * max_num_nodes) + (max_num_nodes * self.k_paths) + max_num_nodes + max_num_nodes + 1 + (2 * self.j + 3) * self.k_paths
+                (max_num_nodes * max_num_nodes) + (max_num_nodes * self.k_paths) + max_num_nodes + max_num_nodes + 1 + (2 * self.j + 3) * self.k_paths
         )
 
         self.observation_space = gym.spaces.Box(
-            low=-2**30, high=2**30, dtype=np.float64, shape=(shape,)
+            low=-2 ** 30, high=2 ** 30, dtype=np.float64, shape=(shape,)
         )
 
         self.action_space = gym.spaces.Discrete(
@@ -75,14 +74,81 @@ class CustomDeepRMSAEnv(RMSAEnv):
             return super().step([self.k_paths, self.num_spectrum_resources])
 
     def observation(self):
-        # TODO Need to construct all these values. They are sampled randomly now
 
-        adjacency_matrix = np.random.randint(2, size=(self.max_num_nodes, self.max_num_nodes)).reshape(1, self.max_num_nodes * self.max_num_nodes)
-        node_features = np.random.randint(2, size=(self.max_num_nodes, self.k_paths)).reshape(1, self.max_num_nodes * self.k_paths)
-        traffic_src = np.random.randint(2, size=(self.max_num_nodes, )).reshape(1, self.max_num_nodes)
-        traffic_dst = np.random.randint(2, size=(self.max_num_nodes, )).reshape(1, self.max_num_nodes)
-        bit_rate = np.random.uniform(low=-1e6, high=1e6, size=(1,)).reshape(1, 1)
-        spectrum_details = np.random.uniform(low=-1e6, high=1e6, size=((2 * self.j + 3) * self.k_paths,)).reshape(1, (2 * self.j + 3) * self.k_paths)
+        src_node_id = self.current_service.source_id
+        dst_node_id = self.current_service.destination_id
+        src_node = self.current_service.source
+        dst_node = self.current_service.destination
+        k_paths = self.k_shortest_paths[src_node, dst_node]
+
+        # max_num_nodes = Maximum Number of edges supported
+
+        k_paths_adjacency_matrix = np.zeros((self.max_num_nodes, self.max_num_nodes))
+        node_features_matrix = np.zeros((self.max_num_nodes, self.k_paths))
+
+        for kpath_num, path in enumerate(k_paths):
+            # path_best_modulation = path.best_modulation
+            # hops = path.hops
+            # total_path_length = path.length
+            # path_id = path.path_id
+            path_node_list = path.node_list
+            for i in range(len(path_node_list) - 1):
+                prev_node = path_node_list[i]
+                prev_node_id = self.topology.graph["node_indices"].index(prev_node)
+                next_node = path_node_list[i + 1]
+                next_node_id = self.topology.graph["node_indices"].index(next_node)
+                if 0 <= int(prev_node_id) < self.max_num_nodes and 0 <= int(next_node_id) < self.max_num_nodes:
+                    k_paths_adjacency_matrix[int(prev_node_id), int(next_node_id)] = 1
+                edge_bw_prev_next_node = self.topology.get_edge_data(prev_node, next_node)
+                if 0 <= int(edge_bw_prev_next_node["id"]) < self.max_num_nodes and 0 <= int(kpath_num) < self.k_paths:
+                    node_features_matrix[int(edge_bw_prev_next_node["id"]), int(kpath_num)] = 1
+
+        traffic_src_obs = np.zeros((self.max_num_nodes,))
+        if 0 <= int(src_node) < self.max_num_nodes:
+            traffic_src_obs[src_node_id] = 1
+
+        traffic_dst_obs = np.zeros((self.max_num_nodes,))
+        if 0 <= dst_node_id < self.max_num_nodes:
+            traffic_dst_obs[dst_node_id] = 1
+
+        bit_rate_obs = np.zeros((1, ))
+        bit_rate_obs[0] = self.current_service.bit_rate / 100
+
+        spectrum_obs = np.full((self.k_paths, 2 * self.j + 3), fill_value=-1.0)
+        for idp, route in enumerate(k_paths):
+            available_slots = self.get_available_slots(route)
+            num_slots = self.get_number_slots(route)
+            initial_indices, lengths = self.get_available_blocks(idp)
+
+            for idb, (initial_index, length) in enumerate(zip(initial_indices, lengths)):
+                # initial slot index
+                spectrum_obs[idp, idb * 2 + 0] = (2 * (initial_index - 0.5 * self.num_spectrum_resources) / self.num_spectrum_resources)
+                # number of contiguous FS available
+                spectrum_obs[idp, idb * 2 + 1] = (length - 8) / 8
+            spectrum_obs[idp, self.j * 2] = (num_slots - 5.5) / 3.5  # number of FSs necessary
+
+            idx, values, lengths = CustomDeepRMSAEnv.rle(available_slots)
+
+            spectrum_obs[idp, self.j * 2 + 1] = (2 * (np.sum(available_slots) - 0.5 * self.num_spectrum_resources) / self.num_spectrum_resources)  # total number available FSs
+            av_indices = np.argwhere(values == 1)  # getting indices which have value 1
+            if av_indices.shape[0] > 0:
+                spectrum_obs[idp, self.j * 2 + 2] = (np.mean(lengths[av_indices]) - 4) / 4  # avg. number of FS blocks available
+
+        print("Current Service Observation: ", src_node, " -> ", dst_node)
+
+        # adjacency_matrix = np.random.randint(2, size=(self.max_num_nodes, self.max_num_nodes)).reshape(1, self.max_num_nodes * self.max_num_nodes)
+        # node_features = np.random.randint(2, size=(self.max_num_nodes, self.k_paths)).reshape(1, self.max_num_nodes * self.k_paths)
+        # traffic_src = np.random.randint(2, size=(self.max_num_nodes, )).reshape(1, self.max_num_nodes)
+        # traffic_dst = np.random.randint(2, size=(self.max_num_nodes, )).reshape(1, self.max_num_nodes)
+        # bit_rate = np.random.uniform(low=-1e6, high=1e6, size=(1,)).reshape(1, 1)
+        # spectrum_details = np.random.uniform(low=-1e6, high=1e6, size=((2 * self.j + 3) * self.k_paths,)).reshape(1, (2 * self.j + 3) * self.k_paths)
+
+        adjacency_matrix = k_paths_adjacency_matrix.reshape(1, self.max_num_nodes * self.max_num_nodes)
+        node_features = node_features_matrix.reshape(1, self.max_num_nodes * self.k_paths)
+        traffic_src = traffic_src_obs.reshape(1, self.max_num_nodes)
+        traffic_dst = traffic_dst_obs.reshape(1, self.max_num_nodes)
+        bit_rate = bit_rate_obs.reshape(1, 1)
+        spectrum_details = spectrum_obs.reshape(1, (2 * self.j + 3) * self.k_paths)
 
         # [0 - 999999] + [1000000 - 1004999] + [1005000 - 1005999] + [1006000 - 1006999] + [1007000] + [1007001 - 1007025] => 1007026
 
@@ -125,9 +191,9 @@ def shortest_path_first_fit(env: CustomDeepRMSAEnv) -> int:
 
 def shortest_available_path_first_fit(env: CustomDeepRMSAEnv) -> int:
     for idp, _ in enumerate(
-        env.k_shortest_paths[
-            env.current_service.source, env.current_service.destination
-        ]
+            env.k_shortest_paths[
+                env.current_service.source, env.current_service.destination
+            ]
     ):
         initial_indices, _ = env.get_available_blocks(idp)
         if len(initial_indices) > 0:  # if there are available slots
