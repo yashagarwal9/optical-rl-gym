@@ -392,7 +392,7 @@ class RMSAEnv(OpticalNetworkEnv):
         self.app.callback(dash.dependencies.Output('services', 'data'),
             dash.dependencies.Input('refresh-graph-interval', 'n_intervals'))(self.callback_service)
         
-        thread = threading.Thread(target=self.app.run_server)
+        thread = threading.Thread(target=self.app.run_server, kwargs={'host':'0.0.0.0', 'port':'8050', 'debug': True})
         thread.start()
         
         
