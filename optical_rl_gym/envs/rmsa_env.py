@@ -389,12 +389,15 @@ class RMSAEnv(OpticalNetworkEnv):
                 options = dict(height= '600px', width= '100%', layout={'hierarchical': True})),
              dcc.Interval(id='refresh-graph-interval', interval=1000, disabled=False)          
         ])
+        self.app.callback(dash.dependencies.Output('services', 'data'),
+            dash.dependencies.Input('refresh-graph-interval', 'n_intervals'))(self.callback_service)
+        
         thread = threading.Thread(target=self.app.run_server)
         thread.start()
         
         
-    @callback(Output('services', 'data'), Input('refresh-graph-interval', 'n_intervals'))
-    def callback_service(self):
+    #@callback(Output('services', 'data'), Input('refresh-graph-interval', 'n_intervals'))
+    def callback_service(self, n):
         nodes = []
         edges = []
         for service in self.topology.graph["running_services"]:
