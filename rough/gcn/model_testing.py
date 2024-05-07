@@ -109,9 +109,9 @@ monitor_info_keywords=('episode_service_blocking_rate','episode_bit_rate_blockin
 
 print(topology)
 # node probabilities from https://github.com/xiaoliangchenUCD/DeepRMSA/blob/6708e9a023df1ec05bfdc77804b6829e33cacfe4/Deep_RMSA_A3C.py#L77
-node_request_probabilities = np.array([1, 0, 0, 1, 0,
-                                       0, 0, 0, 0, 0,
-                                       0, 0, 0, 0])
+node_request_probabilities = np.array([0.01801802, 0.04004004, 0.05305305, 0.01901902, 0.04504505,
+                                       0.02402402, 0.06706707, 0.08908909, 0.13813814, 0.12212212,
+                                       0.07607608, 0.12012012, 0.01901902, 0.16916917])
 
 # mean_service_holding_time=7.5,
 env_args = dict(topology=topology, seed=10,
@@ -152,13 +152,13 @@ _states = None
 actions = []
 dones_arr = []
 ct=1
+env.render()
 for _ in range(100):
     action, _states = loaded_model.predict(obs, deterministic=True)
     print(ct)
     ct+=1
     actions.append(action)
     obs, rewards, dones, info = env.step(action)
-    # env.render()
     dones_arr.append(dones) 
 
 print(actions)

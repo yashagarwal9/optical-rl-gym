@@ -9,6 +9,11 @@ from typing import Optional, Sequence, Tuple
 import gym
 import networkx as nx
 import numpy as np
+import dash
+from dash import dcc, html, callback
+import visdcc
+from dash.dependencies import Input, Output
+import threading
 
 from optical_rl_gym.utils import Path, Service
 
@@ -159,6 +164,16 @@ class RMSAEnv(OpticalNetworkEnv):
         self._new_service = False
         if reset:
             self.reset(only_episode_counters=False)
+        
+        self.nodes = []
+        self.edges = []
+        self.app = dash.Dash(__name__)
+
+    def populate_nodes_edges(self):
+        self.nodes = [{'id': str(node), 'label': str(node), 'color' : '#7f7f7f', 'physics': False} for node in self.topology.nodes()]
+        self.edges = [{'from': str(source), 'to': str(target), 'label': str(weight), 'width': 2, 'color' : '#ccc', 'physics': False} 
+                 for source, target, weight in self.topology.edges(data='weight')]
+    
 
     def step(self, action):
         path, initial_slot = action[0], action[1]
@@ -362,9 +377,37 @@ class RMSAEnv(OpticalNetworkEnv):
         self._new_service = False
         self._next_service()
         return self.observation()
+    
+    def render(self):
+        self.populate_nodes_edges()
+        self.app.layout = html.Div([
+            visdcc.Network(id = 'network',
+                data = {'nodes': self.nodes, 'edges': self.edges},
+                options = dict(height= '600px', width= '100%', layout={'improvedLayout': True})),
+            visdcc.Network(id = 'services',
+                data = {'nodes': [], 'edges': []},
+                options = dict(height= '600px', width= '100%', layout={'hierarchical': True})),
+             dcc.Interval(id='refresh-graph-interval', interval=1000, disabled=False)          
+        ])
+        thread = threading.Thread(target=self.app.run_server(debug=True))
+        thread.start()
+        
+        
+    @callback(Output('services', 'data'), Input('refresh-graph-interval', 'n_intervals'))
+    def callback_service(self):
+        nodes = []
+        edges = []
+        for service in self.topology.graph["running_services"]:
+            if service.accepted:
+                service.source_id
+                service.destination_id
+                nodes += [{'id': str(service.path.node_list[i])+service.service_id, 'label': str(service.path.node_list[i]), 'color' : 'pink', 'physics': False} 
+                            for i in range(len(service.path.node_list) - 1)]
+                edges += [{'from': str(service.path.node_list[i])+service.service_id, 'to': str(service.path.node_list[i+1])+service.service_id, 'label': f'{service.service_id}\n{service.bit_rate}', 'width': 2, 'color' : 'pink', 'physics': False}
+                            for i in range(len(service.path.node_list) - 1)]
+            
+        return {'nodes': nodes, 'edges': edges}
 
-    def render(self, mode="human"):
-        return
 
     def _provision_path(self, path: Path, initial_slot, number_slots):
         # usage
