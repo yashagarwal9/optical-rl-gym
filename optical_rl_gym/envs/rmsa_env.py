@@ -179,6 +179,9 @@ class RMSAEnv(OpticalNetworkEnv):
                     self.current_service.source, self.current_service.destination
                 ][path]
             )
+            #print("SLOT: ",slots)
+            #print("PATH: ",path)
+
             self.logger.debug(
                 "{} processing action {} path {} and initial slot {} for {} slots".format(
                     self.current_service.service_id, action, path, initial_slot, slots
@@ -231,6 +234,7 @@ class RMSAEnv(OpticalNetworkEnv):
         )  # measuring compactness after the provisioning
 
         reward = self.reward()
+        print(f"    Reward: {reward}")
         info = {
             "service_blocking_rate": (self.services_processed - self.services_accepted)
             / self.services_processed,
@@ -274,6 +278,7 @@ class RMSAEnv(OpticalNetworkEnv):
 
         self._new_service = False
         self._next_service()
+
         return (
             self.observation(),
             reward,
@@ -399,7 +404,8 @@ class RMSAEnv(OpticalNetworkEnv):
         self.current_service.initial_slot = initial_slot
         self.current_service.number_slots = number_slots
         self._update_network_stats()
-
+        #print("AVAILABLE SLOTS: ",self.topology.graph["available_slots"])
+        #print("SPECTRUM ALLOC: ",self.spectrum_slots_allocation)
         self.services_accepted += 1
         self.episode_services_accepted += 1
         self.bit_rate_provisioned += self.current_service.bit_rate
@@ -612,6 +618,8 @@ class RMSAEnv(OpticalNetworkEnv):
         Method that computes the number of spectrum slots necessary to accommodate the service request into the path.
         The method already adds the guardband.
         """
+
+        #print("NODE LIST",path.node_list)
         return (
             math.ceil(
                 self.current_service.bit_rate
@@ -623,6 +631,7 @@ class RMSAEnv(OpticalNetworkEnv):
     def is_path_free(self, path: Path, initial_slot: int, number_slots: int) -> bool:
         if initial_slot + number_slots > self.num_spectrum_resources:
             # logging.debug('error index' + env.parameters.rsa_algorithm)
+            print("More slots needed than available")
             return False
         for i in range(len(path.node_list) - 1):
             if np.any(
@@ -632,6 +641,7 @@ class RMSAEnv(OpticalNetworkEnv):
                 ]
                 == 0
             ):
+                print("Consecutive slots not available")
                 return False
         return True
 

@@ -32,7 +32,7 @@ class CustomDeepRMSAEnv(RMSAEnv):
             allow_rejection=allow_rejection,
             reset=False
         )
-
+        self.logger.setLevel("DEBUG")
         self.j = j
         self.max_num_nodes = max_num_nodes
         # self.observation_space = spaces.Dict(
@@ -63,6 +63,7 @@ class CustomDeepRMSAEnv(RMSAEnv):
 
     def step(self, action: int):
         if action < self.k_paths * self.j:  # action is for assigning a route
+            print(f"    Action: {action}")
             route, block = self._get_route_block_id(action)
 
             initial_indices, lengths = self.get_available_blocks(route)
@@ -169,7 +170,7 @@ class CustomDeepRMSAEnv(RMSAEnv):
     def reward(self):
         return 1 if self.current_service.accepted else -1
 
-    def reset(self, only_episode_counters=True):
+    def reset(self, only_episode_counters=False):
         return super().reset(only_episode_counters=only_episode_counters)
 
     def _get_route_block_id(self, action: int) -> Tuple[int, int]:
