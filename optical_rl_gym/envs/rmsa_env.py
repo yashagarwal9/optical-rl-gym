@@ -378,7 +378,7 @@ class RMSAEnv(OpticalNetworkEnv):
         self._next_service()
         return self.observation()
     
-    def render(self):
+    def render(self, mode="human"):
         self.populate_nodes_edges()
         self.app.layout = html.Div([
             visdcc.Network(id = 'network',
@@ -389,7 +389,7 @@ class RMSAEnv(OpticalNetworkEnv):
                 options = dict(height= '600px', width= '100%', layout={'hierarchical': True})),
              dcc.Interval(id='refresh-graph-interval', interval=1000, disabled=False)          
         ])
-        thread = threading.Thread(target=self.app.run_server(debug=True))
+        thread = threading.Thread(target=self.app.run_server)
         thread.start()
         
         
