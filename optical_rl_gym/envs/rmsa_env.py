@@ -392,7 +392,7 @@ class RMSAEnv(OpticalNetworkEnv):
         self.app.callback(dash.dependencies.Output('services', 'data'),
             dash.dependencies.Input('refresh-graph-interval', 'n_intervals'))(self.callback_service)
         
-        thread = threading.Thread(target=self.app.run_server, kwargs={'host':'0.0.0.0', 'port':'8050', 'debug': True})
+        thread = threading.Thread(target=self.app.run_server, kwargs={'host':'0.0.0.0', 'port':'8050'})
         thread.start()
         
         
@@ -404,9 +404,9 @@ class RMSAEnv(OpticalNetworkEnv):
             if service.accepted:
                 service.source_id
                 service.destination_id
-                nodes += [{'id': str(service.path.node_list[i])+service.service_id, 'label': str(service.path.node_list[i]), 'color' : 'pink', 'physics': False} 
+                nodes += [{'id': str(service.path.node_list[i])+str(service.service_id), 'label': str(service.path.node_list[i]), 'color' : 'pink', 'physics': False} 
                             for i in range(len(service.path.node_list) - 1)]
-                edges += [{'from': str(service.path.node_list[i])+service.service_id, 'to': str(service.path.node_list[i+1])+service.service_id, 'label': f'{service.service_id}\n{service.bit_rate}', 'width': 2, 'color' : 'pink', 'physics': False}
+                edges += [{'from': str(service.path.node_list[i])+str(service.service_id), 'to': str(service.path.node_list[i+1])+str(service.service_id), 'label': f'{service.service_id}\n{service.bit_rate}', 'width': 2, 'color' : 'pink', 'physics': False}
                             for i in range(len(service.path.node_list) - 1)]
             
         return {'nodes': nodes, 'edges': edges}
